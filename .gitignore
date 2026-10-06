@@ -1,0 +1,15 @@
+# Secrets — jangan pernah commit
+.env
+*.env
+!*.env.example
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
