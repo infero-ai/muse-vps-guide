@@ -79,6 +79,7 @@ jelas. Penjelasan manual setiap langkah tersedia di tutorial.
 |---|---|
 | [`TUTORIAL-HERMES-VPS-ID.md`](TUTORIAL-HERMES-VPS-ID.md) | **Tutorial utama** — A (server menjadi VPS), B (instalasi Hermes), C (banyak model AI). Setiap langkah bersifat atomik disertai perintah verifikasi, dapat dieksekusi langsung oleh agen. |
 | [`TUTORIAL-MUSE-VPS-ID.md`](TUTORIAL-MUSE-VPS-ID.md) | Varian fork M.U.S.E dengan pola yang sama. |
+| [`TUTORIAL-CLOUDFLARE-TUNNEL-ID.md`](TUTORIAL-CLOUDFLARE-TUNNEL-ID.md) | **Jaringan VPS keluar via Cloudflare** — Worker + Durable Object + agent: service lokal di VPS dapat diakses publik tanpa membuka port inbound. |
 | [`scripts/install-hermes-vps.sh`](scripts/install-hermes-vps.sh) | Skrip instalasi otomatis (untuk agen maupun manusia). |
 | [`assets/tutorial.gif`](assets/tutorial.gif) | Animasi ilustrasi perintah utama. |
 
