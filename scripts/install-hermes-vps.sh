@@ -55,8 +55,10 @@ log "[3/8] tulis ~/.hermes/.env"
 ENV_FILE="$HOME_DIR/.hermes/.env"
 touch "$ENV_FILE"; chmod 600 "$ENV_FILE"
 set_kv() { # $1=KEY $2=value (tambah atau ganti)
+  # escape sed: backslash, &, dan delimiter |
+  esc="$(printf '%s' "$2" | sed -e 's/[\\&|]/\\&/g')"
   if grep -q "^$1=" "$ENV_FILE"; then
-    sed -i "s|^$1=.*|$1=$2|" "$ENV_FILE"
+    sed -i "s|^$1=.*|$1=$esc|" "$ENV_FILE"
   else
     printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"
   fi
@@ -103,8 +105,8 @@ log "OK"
 
 # ---------- 7. systemd daemon ----------
 log "[7/8] pasang systemd service"
-PYBIN="$(ls -d "$HOME_DIR"/.hermes/tools/python-3.14*/bin/python3 2>/dev/null | head -1 || true)"
-[ -n "$PYBIN" ] || fail "Python bawaan Hermes tidak ditemukan di ~/.hermes/tools/"
+PYBIN="$(ls -d "$HOME_DIR"/.hermes/tools/python-3.*/bin/python3 2>/dev/null | sort -V | tail -1 || true)"
+[ -n "$PYBIN" ] || fail "Python bawaan Hermes tidak ditemukan di ~/.hermes/tools/ (cari: ls ~/.hermes/tools/)"
 UNIT_SRC="$HOME_DIR/hermes-tunnel/hermes-gateway.service"
 mkdir -p "$HOME_DIR/hermes-tunnel"
 cat > "$UNIT_SRC" <<EOF
@@ -134,16 +136,61 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now hermes-gateway
 sleep 5
 systemctl is-active -q hermes-gateway || fail "service tidak active — cek: journalctl -u hermes-gateway"
-COUNT="$(pgrep -f 'hermes-agent/herme[s].*gateway.*run' | wc -l)"
+COUNT="$(pgrep -f 'hermes-agent/herme[s].*gateway.*run' 2>/dev/null | wc -l || true)"
 [ "$COUNT" -eq 1 ] || fail "gateway berjalan $COUNT proses (harus tepat 1)"
 log "OK (service active, tepat 1 gateway)"
 
+# ---------- 7b. watchdog cron (langkah 8) ----------
+log "[7b/8] pasang watchdog cron"
+cat > "$HOME_DIR/hermes-tunnel/boot-gateway.sh" <<'EOF'
+#!/bin/bash
+set -u
+PAT='hermes-agent/herme[s].*gateway.*run'
+UNIT=/etc/systemd/system/hermes-gateway.service
+MASTER="$HOME/hermes-tunnel/hermes-gateway.service"
+
+# pasang ulang unit kalau hilang
+if [ ! -f "$UNIT" ] && [ -f "$MASTER" ]; then
+  sudo cp "$MASTER" "$UNIT"
+  sudo systemctl daemon-reload
+  sudo systemctl enable hermes-gateway
+fi
+
+COUNT=$(pgrep -f "$PAT" 2>/dev/null | grep -c . || true)
+if [ "$COUNT" -eq 1 ]; then
+  exit 0                                   # sehat — jangan disentuh
+elif [ "$COUNT" -eq 0 ]; then
+  sudo systemctl start hermes-gateway      # mati — nyalakan
+else
+  # duplikat — sisakan milik systemd (atau yang tertua)
+  KEEP=$(systemctl show hermes-gateway --property=MainPID --value)
+  [ "$KEEP" = "0" ] && KEEP=$(pgrep -f "$PAT" | sort -n | head -1)
+  for pid in $(pgrep -f "$PAT"); do
+    [ "$pid" != "$KEEP" ] && sudo kill "$pid"
+  done
+fi
+EOF
+chmod +x "$HOME_DIR/hermes-tunnel/boot-gateway.sh"
+CRON_LINE="*/2 * * * * $HOME_DIR/hermes-tunnel/boot-gateway.sh >> $HOME_DIR/hermes-tunnel/watchdog.log 2>&1"
+if ! crontab -l 2>/dev/null | grep -qF "hermes-tunnel/boot-gateway.sh"; then
+  (crontab -l 2>/dev/null; printf '%s\n' "$CRON_LINE") | crontab -
+  log "watchdog cron terpasang"
+else
+  log "watchdog cron sudah ada — lewati"
+fi
+"$HOME_DIR/hermes-tunnel/boot-gateway.sh" && log "tes watchdog manual OK"
+
 # ---------- 8. verifikasi akhir ----------
 log "[8/8] verifikasi akhir"
-hermes -z "jawab dengan satu kata: ok" 2>&1 | head -3 || log "(tes model dilewati — cek manual)"
+# tanpa head di pipeline (pipefail + SIGPIPE = false-alarm "dilewati")
+if OUT="$(hermes -z "jawab dengan satu kata: ok" 2>&1)"; then
+  printf '%s\n' "$OUT" | head -3
+else
+  log "(tes model dilewati — cek manual)"
+fi
 echo ""
 echo "SELESAI. Ringkasan:"
-echo "  - hermes: $(hermes --version 2>/dev/null | head -1)"
+echo "  - hermes: $(hermes --version 2>/dev/null | head -1 || true)"
 echo "  - gateway: $(systemctl is-active hermes-gateway)"
 echo "  - log: tail -f ~/.hermes/logs/gateway.log"
 echo "  - uji dari Discord: mention bot / kirim DM"

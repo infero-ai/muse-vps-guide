@@ -266,19 +266,28 @@ curl -s https://tunnel-vps.<akun>.workers.dev/__tunnel
 **Penjelasan.** Agar bisa diakses via domain sendiri
 (`tunnel.domainanda.com`), tambahkan route di Worker tersebut.
 
-**Perintah** (pilih salah satu):
+**Perintah.** Daftarkan route di `wrangler.toml` (`wrangler route add`
+sudah deprecated dan tidak tersedia di Wrangler modern):
+
+```toml
+[[routes]]
+pattern = "tunnel.domainanda.com/*"
+zone_name = "domainanda.com"
+```
+
+lalu deploy ulang:
 
 ```bash
-# via CLI
-wrangler route add "tunnel.domainanda.com/*" --zone-name domainanda.com
+wrangler deploy
 ```
 
 atau via dashboard: **Workers & Pages → tunnel-vps → Settings →
 Domains & Routes → Add → Route** → isi
 `tunnel.domainanda.com/*`.
 
-Tidak perlu membuat DNS record manual — route Worker otomatis menangani
-hostname tersebut selama zona domain aktif di Cloudflare.
+Pastikan ada DNS record (A/AAAA/CNAME, proxied/orange-cloud) untuk
+`tunnel.domainanda.com` di zona tersebut — route tidak berfungsi tanpa
+DNS record.
 
 **Verifikasi.**
 

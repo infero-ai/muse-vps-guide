@@ -19,7 +19,7 @@
 - [2. Sambungkan provider & model](#2-sambungkan-provider--model)
 - [3. Discord native gateway](#3-discord-native-gateway)
 - [4. Daemon systemd + watchdog](#4-daemon-systemd--watchdog)
-- [5. Fitur khas M.U.S.E](#5-fitur-khas-muse)
+- [5. Fitur khas M.U.S.E](#5-fitur-khas-muse-fork-docs)
 - [6. Verifikasi & perintah harian](#6-verifikasi--perintah-harian)
 - [7. Gotcha & troubleshooting](#7-gotcha--troubleshooting)
 
